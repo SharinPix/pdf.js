@@ -211,7 +211,14 @@ function webViewerLoad() {
       document.dispatchEvent(event);
     }
   }
-  PDFViewerApplication.run(config);
+  console.log('LUC APP:', config);
+  const app = PDFViewerApplication.run(config);
+  app.then(console.log);
+  window.addEventListener('message', (event) => {
+    PDFViewerApplication.open({url: 'data:application/pdf;base64,'+event.base64});
+  })
+  console.log('APP', app);
+  console.log(PDFViewerApplication);
 }
 
 // Block the "load" event until all pages are loaded, to ensure that printing
