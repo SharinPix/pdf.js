@@ -1252,8 +1252,8 @@ class TextWidgetAnnotationElement extends WidgetAnnotationElement {
       }
 
       element.addEventListener("input", event => {
-        console.log("Field ID: ", id);
         console.log("Field name: ", event.target.name);
+        console.log("Field value: ", event.target.value);
         storage.setValue(id, { value: event.target.value });
         this.setPropertyOnSiblings(
           element,
