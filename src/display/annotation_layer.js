@@ -1569,6 +1569,8 @@ class CheckboxWidgetAnnotationElement extends WidgetAnnotationElement {
 
     element.addEventListener("change", event => {
       const { name, checked } = event.target;
+      console.log("Checkbox name:", name);
+      console.log("Checkbox checked:", checked);
       for (const checkbox of this._getElementsByName(name, /* skipId = */ id)) {
         const curChecked = checked && checkbox.exportValue === data.exportValue;
         if (checkbox.domElement) {
@@ -1669,6 +1671,8 @@ class RadioButtonWidgetAnnotationElement extends WidgetAnnotationElement {
 
     element.addEventListener("change", event => {
       const { name, checked } = event.target;
+      console.log("Radio name: ", name);
+      console.log("Radio checked: ", checked);
       for (const radio of this._getElementsByName(name, /* skipId = */ id)) {
         storage.setValue(radio.id, { value: false });
       }
@@ -1948,6 +1952,8 @@ class ChoiceWidgetAnnotationElement extends WidgetAnnotationElement {
 
       selectElement.addEventListener("input", event => {
         const exportValue = getValue(/* isExport */ true);
+        console.log("Select name:", event.target.name);
+        console.log("Select value:", event.target.value);
         storage.setValue(id, { value: exportValue });
 
         event.preventDefault();
@@ -1983,6 +1989,8 @@ class ChoiceWidgetAnnotationElement extends WidgetAnnotationElement {
       );
     } else {
       selectElement.addEventListener("input", function (event) {
+        console.log("Select name:", event.target.name);
+        console.log("Select value:", event.target.value);
         storage.setValue(id, { value: getValue(/* isExport */ true) });
       });
     }
