@@ -210,9 +210,8 @@ function webViewerLoad() {
   }
   PDFViewerApplication.run(config);
   window.addEventListener("message", event => {
-    const base64Pdf = `data:application/pdf;base64,`;
-    console.log(event.origin, event, base64Pdf);
-    // PDFViewerApplication.open({ url: base64Pdf });
+    const base64Pdf = event.data ?? "";
+    PDFViewerApplication.open({ url: base64Pdf });
   });
 }
 
