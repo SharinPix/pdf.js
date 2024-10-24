@@ -107,6 +107,7 @@ the `pdfjs-dist` name. For more information and examples please refer to the
     server.host = '0.0.0.0';
     server.start();
     ```
++ Build the docker image using `mutagen-compose build`
 + Start the docker container with `mutagen-compose up pdfjs`
 + Access server at `http://localhost:8888/web/viewer.html`
 
