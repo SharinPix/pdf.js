@@ -3,7 +3,7 @@ on:
 
 jobs:
   docker:
-    name: Create Heroku Docker Image
+    name: Create PDFJS Docker Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
