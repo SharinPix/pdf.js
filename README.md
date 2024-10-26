@@ -125,7 +125,7 @@ The API documentation can be found at:
 
 + https://mozilla.github.io/pdf.js/api/
 
-## Question
+## Questions
 
 Check out our FAQs and get answers to common questions:
 
