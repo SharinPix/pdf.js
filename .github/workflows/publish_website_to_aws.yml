@@ -1,11 +1,11 @@
 name: Deploy Website to AWS
 
 on: push
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
-  # push:
-  #   branches:
-  #     - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
 
 jobs:
   build-deploy:
@@ -20,18 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: Set up Node.js
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 'lts/*'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
 
-      # - name: Install dependencies
-      #   run: |
-      #     npm ci
-      #     npm install -g gulp-cli
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g gulp-cli
 
-      # - name: Build the website
-      #   run: gulp web
+      - name: Build the website
+        run: gulp web
 
       # - name: Configure AWS credentials (Pull Request)
       #   if: github.event_name == 'pull_request'
@@ -68,14 +68,14 @@ jobs:
           aws-region: us-east-1
           role-session-name: GitHubActionsSession
 
-      # - name: Deploy to Production
-      #   # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      #   run: |
-      #     aws s3 sync build/gh-pages/ s3://${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
+      - name: Deploy to Production
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          aws s3 sync build/gh-pages/ s3://${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
 
-      # - name: Update environment secret with production URL
-      #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      #   run: |
-      #     gh secret set PRODUCTION_URL -b "{{secrets.AWS_PROD_URL}}"
-      #   env:
-      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update environment secret with production URL
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          gh secret set PRODUCTION_URL -b "{{secrets.AWS_PROD_URL}}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
