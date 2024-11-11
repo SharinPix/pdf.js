@@ -71,7 +71,7 @@ jobs:
       - name: Deploy to Production
         # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
-          aws s3 sync build/gh-pages/ s3://${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
+          aws s3 sync build/gh-pages/ ${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
 
       - name: Update environment secret with production URL
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
