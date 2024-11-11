@@ -1,11 +1,11 @@
 name: Deploy Website to AWS
 
 on: push
-  pull_request:
-    types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - master
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  # push:
+  #   branches:
+  #     - master
 
 jobs:
   build-deploy:
