@@ -75,6 +75,6 @@ jobs:
       - name: Update environment secret with production URL
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
-          gh secret set PRODUCTION_URL -b "https://${{ vars.AWS_PRODUCTION_BUCKET_NAME }}.s3.us-east-1.amazonaws.com/web/viewer.html?file=${{ vars.TEST_PDF }}"
+          gh secret set PRODUCTION_URL -b "https://dfdsfqw2easdfas.cloudfront.net/web/viewer.html"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
