@@ -65,7 +65,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_PROD_ACCOUNT_ID }}
-          aws-region: us-east-1
+          # aws-region: us-east-1
           role-session-name: GitHubActionsSession
 
       - name: Deploy to Production
