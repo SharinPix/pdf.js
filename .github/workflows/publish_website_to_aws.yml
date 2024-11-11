@@ -11,7 +11,7 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
       pull-requests: write   # Ensure GitHub Actions can comment on PRs
     steps:
