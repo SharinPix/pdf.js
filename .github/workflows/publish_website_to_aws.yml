@@ -60,7 +60,7 @@ jobs:
             });
 
       - name: Configure AWS credentials Production
-        if: github.event_name == 'pull_request'
+        # if: github.event_name == 'pull_request'
         # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: aws-actions/configure-aws-credentials@v4
         with:
