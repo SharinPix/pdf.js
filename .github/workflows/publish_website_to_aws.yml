@@ -59,8 +59,8 @@ jobs:
               body: `Preview your deployment: [View Here](${url})`
             });
 
-      - name: Configure AWS credentials (Production)
-        if: github.event_name == 'pull_request'
+      - name: Configure AWS credentials Production
+        # if: github.event_name == 'pull_request'
         # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -68,7 +68,7 @@ jobs:
           aws-region: us-east-1
           role-session-name: GitHubActionsSession
 
-      - name: Deploy to S3 (Production)
+      - name: Deploy to Production
         # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           aws s3 sync build/gh-pages/ s3://${{ vars.AWS_PRODUCTION_BUCKET_NAME }}/ --acl public-read
