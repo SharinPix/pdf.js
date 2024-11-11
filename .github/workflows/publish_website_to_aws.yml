@@ -60,21 +60,22 @@ jobs:
             });
 
       - name: Configure AWS credentials (Production)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'pull_request'
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-role
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}
           aws-region: us-east-1
           role-session-name: GitHubActionsSession
 
       - name: Deploy to S3 (Production)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           aws s3 sync build/gh-pages/ s3://${{ vars.AWS_PRODUCTION_BUCKET_NAME }}/ --acl public-read
 
       - name: Update environment secret with production URL
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
-          gh secret set PRODUCTION_URL -b "https://dfdsfqw2easdfas.cloudfront.net/web/viewer.html"
+          gh secret set PRODUCTION_URL -b "{{vars.AWS_PROD_URL}}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
