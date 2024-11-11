@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write    # Required for OIDC role assumption
+      id-token: write
+      pull-requests: write   # Ensure GitHub Actions can comment on PRs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,10 +56,10 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: url
+              body: `Preview your deployment: [View Here](${url})`
             });
 
-      - name: Configure AWS Credentials (Production)
+      - name: Configure AWS credentials (Production)
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: aws-actions/configure-aws-credentials@v4
         with:
