@@ -20,18 +20,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 'lts/*'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm install -g gulp-cli
+      # - name: Install dependencies
+      #   run: |
+      #     npm ci
+      #     npm install -g gulp-cli
 
-      - name: Build the website
-        run: gulp web
+      # - name: Build the website
+      #   run: gulp web
 
       # - name: Configure AWS credentials (Pull Request)
       #   if: github.event_name == 'pull_request'
@@ -64,14 +64,14 @@ jobs:
         # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: secrets.AWS_GITHUB_ACTION_ROLE_ARN
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTION_ROLE_ARN }}
           aws-region: us-east-1
           role-session-name: GitHubActionsSession
 
-      - name: Deploy to Production
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        run: |
-          aws s3 sync build/gh-pages/ s3://${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
+      # - name: Deploy to Production
+      #   # if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      #   run: |
+      #     aws s3 sync build/gh-pages/ s3://${{ secrets.AWS_PRODUCTION_BUCKET_CDN }}/pdfjs/ --acl public-read
 
       # - name: Update environment secret with production URL
       #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
