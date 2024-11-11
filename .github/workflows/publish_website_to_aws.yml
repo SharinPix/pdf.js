@@ -1,7 +1,11 @@
-name: Publish website to AWS
+name: Deploy Website to AWS
+
 on:
   pull_request:
     types: [pull_request]
+  push:
+    branches:
+      - master
 
 jobs:
   build-deploy:
@@ -35,10 +39,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Deploy to S3
-        run: aws s3 sync build/gh-pages/ s3://${{ vars.AWS_BUCKET_NAME }}/${{ github.event.pull_request.head.sha }}/ --acl public-read
+      - name: Deploy to S3 (Pull Request)
+        if: github.event_name == 'pull_request'
+        run: |
+          aws s3 sync build/gh-pages/ s3://${{ vars.AWS_BUCKET_NAME }}/${{ github.event.pull_request.head.sha }}/ --acl public-read
 
       - name: Comment deployment URL on PR
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
@@ -49,3 +56,15 @@ jobs:
               repo: context.repo.repo,
               body: url
             });
+
+      - name: Deploy to S3 (Production)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          aws s3 sync build/gh-pages/ s3://${{ vars.AWS_PRODUCTION_BUCKET_NAME }}/ --acl public-read
+
+      - name: Update environment secret with production URL
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          gh secret set PRODUCTION_URL -b "https://${{ vars.AWS_PRODUCTION_BUCKET_NAME }}.s3.us-east-1.amazonaws.com/web/viewer.html?file=${{ vars.TEST_PDF }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
