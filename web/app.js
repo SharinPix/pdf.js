@@ -53,7 +53,7 @@ import {
   PDFWorker,
   ResponseException,
   shadow,
-  stopEvent,
+  // stopEvent,
   TouchManager,
   version,
 } from "pdfjs-lib";
