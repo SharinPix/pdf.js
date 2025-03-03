@@ -27,29 +27,30 @@ import {
   AnnotationEditorParamsType,
   AnnotationEditorType,
   AnnotationMode,
+  AnnotationType,
   createValidAbsoluteUrl,
   FeatureTest,
+  getUuid,
   ImageKind,
   InvalidPDFException,
-  MissingPDFException,
   normalizeUnicode,
   OPS,
   PasswordResponses,
   PermissionFlag,
+  ResponseException,
   shadow,
-  UnexpectedResponseException,
   Util,
   VerbosityLevel,
 } from "./shared/util.js";
 import {
   build,
   getDocument,
+  isValidExplicitDest,
   PDFDataRangeTransport,
   PDFWorker,
   version,
 } from "./display/api.js";
 import {
-  DOMSVGFactory,
   fetchData,
   getFilenameFromUrl,
   getPdfFilenameFromUrl,
@@ -62,15 +63,20 @@ import {
   PixelsPerInch,
   RenderingCancelledException,
   setLayerDimensions,
+  stopEvent,
+  SupportedImageMimeTypes,
 } from "./display/display_utils.js";
 import { AnnotationEditorLayer } from "./display/editor/annotation_editor_layer.js";
 import { AnnotationEditorUIManager } from "./display/editor/tools.js";
 import { AnnotationLayer } from "./display/annotation_layer.js";
 import { ColorPicker } from "./display/editor/color_picker.js";
+import { DOMSVGFactory } from "./display/svg_factory.js";
 import { DrawLayer } from "./display/draw_layer.js";
 import { GlobalWorkerOptions } from "./display/worker_options.js";
-import { Outliner } from "./display/editor/outliner.js";
+import { HighlightOutliner } from "./display/editor/drawers/highlight.js";
+import { SignatureExtractor } from "./display/editor/drawers/signaturedraw.js";
 import { TextLayer } from "./display/text_layer.js";
+import { TouchManager } from "./display/touch_manager.js";
 import { XfaLayer } from "./display/xfa_layer.js";
 
 /* eslint-disable-next-line no-unused-vars */
@@ -80,9 +86,9 @@ const pdfjsVersion =
 const pdfjsBuild =
   typeof PDFJSDev !== "undefined" ? PDFJSDev.eval("BUNDLE_BUILD") : void 0;
 
-if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("TESTING")) {
+if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("TESTING || GENERIC")) {
   globalThis.pdfjsTestingUtils = {
-    Outliner,
+    HighlightOutliner,
   };
 }
 
@@ -94,6 +100,7 @@ export {
   AnnotationEditorUIManager,
   AnnotationLayer,
   AnnotationMode,
+  AnnotationType,
   build,
   ColorPicker,
   createValidAbsoluteUrl,
@@ -104,13 +111,14 @@ export {
   getDocument,
   getFilenameFromUrl,
   getPdfFilenameFromUrl,
+  getUuid,
   getXfaPageViewport,
   GlobalWorkerOptions,
   ImageKind,
   InvalidPDFException,
   isDataScheme,
   isPdfFile,
-  MissingPDFException,
+  isValidExplicitDest,
   noContextMenu,
   normalizeUnicode,
   OPS,
@@ -122,10 +130,14 @@ export {
   PermissionFlag,
   PixelsPerInch,
   RenderingCancelledException,
+  ResponseException,
   setLayerDimensions,
   shadow,
+  SignatureExtractor,
+  stopEvent,
+  SupportedImageMimeTypes,
   TextLayer,
-  UnexpectedResponseException,
+  TouchManager,
   Util,
   VerbosityLevel,
   version,

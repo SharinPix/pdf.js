@@ -484,6 +484,7 @@ class CanvasExtraState {
     this.fillColor = "#000000";
     this.strokeColor = "#000000";
     this.patternFill = false;
+    this.patternStroke = false;
     // Note: fill alpha applies to all non-stroking operations
     this.fillAlpha = 1;
     this.strokeAlpha = 1;
@@ -586,7 +587,7 @@ class CanvasExtraState {
 }
 
 function putBinaryImageData(ctx, imgData) {
-  if (typeof ImageData !== "undefined" && imgData instanceof ImageData) {
+  if (imgData instanceof ImageData) {
     ctx.putImageData(imgData, 0, 0);
     return;
   }
@@ -1884,15 +1885,19 @@ class CanvasGraphics {
       return;
     }
 
-    ctx.save();
-    ctx.beginPath();
-    for (const path of paths) {
-      ctx.setTransform(...path.transform);
-      ctx.translate(path.x, path.y);
-      path.addToPath(ctx, path.fontSize);
+    const newPath = new Path2D();
+    const invTransf = ctx.getTransform().invertSelf();
+    for (const { transform, x, y, fontSize, path } of paths) {
+      newPath.addPath(
+        path,
+        new DOMMatrix(transform)
+          .preMultiplySelf(invTransf)
+          .translate(x, y)
+          .scale(fontSize, -fontSize)
+      );
     }
-    ctx.restore();
-    ctx.clip();
+
+    ctx.clip(newPath);
     ctx.beginPath();
     delete this.pendingTextPaths;
   }
@@ -2001,7 +2006,16 @@ class CanvasGraphics {
     this.moveText(0, this.current.leading);
   }
 
-  paintChar(character, x, y, patternTransform) {
+  #getScaledPath(path, currentTransform, transform) {
+    const newPath = new Path2D();
+    newPath.addPath(
+      path,
+      new DOMMatrix(transform).invertSelf().multiplySelf(currentTransform)
+    );
+    return newPath;
+  }
+
+  paintChar(character, x, y, patternFillTransform, patternStrokeTransform) {
     const ctx = this.ctx;
     const current = this.current;
     const font = current.font;
@@ -2013,31 +2027,65 @@ class CanvasGraphics {
       textRenderingMode & TextRenderingMode.ADD_TO_PATH_FLAG
     );
     const patternFill = current.patternFill && !font.missingFile;
+    const patternStroke = current.patternStroke && !font.missingFile;
 
-    let addToPath;
-    if (font.disableFontFace || isAddToPathSet || patternFill) {
-      addToPath = font.getPathGenerator(this.commonObjs, character);
+    let path;
+    if (
+      font.disableFontFace ||
+      isAddToPathSet ||
+      patternFill ||
+      patternStroke
+    ) {
+      path = font.getPathGenerator(this.commonObjs, character);
     }
 
-    if (font.disableFontFace || patternFill) {
+    if (font.disableFontFace || patternFill || patternStroke) {
       ctx.save();
       ctx.translate(x, y);
-      ctx.beginPath();
-      addToPath(ctx, fontSize);
-      if (patternTransform) {
-        ctx.setTransform(...patternTransform);
-      }
+      ctx.scale(fontSize, -fontSize);
+      let currentTransform;
       if (
         fillStrokeMode === TextRenderingMode.FILL ||
         fillStrokeMode === TextRenderingMode.FILL_STROKE
       ) {
-        ctx.fill();
+        if (patternFillTransform) {
+          currentTransform = ctx.getTransform();
+          ctx.setTransform(...patternFillTransform);
+          ctx.fill(
+            this.#getScaledPath(path, currentTransform, patternFillTransform)
+          );
+        } else {
+          ctx.fill(path);
+        }
       }
       if (
         fillStrokeMode === TextRenderingMode.STROKE ||
         fillStrokeMode === TextRenderingMode.FILL_STROKE
       ) {
-        ctx.stroke();
+        if (patternStrokeTransform) {
+          currentTransform ||= ctx.getTransform();
+          ctx.setTransform(...patternStrokeTransform);
+          const { a, b, c, d } = currentTransform;
+          const invPatternTransform = Util.inverseTransform(
+            patternStrokeTransform
+          );
+          const transf = Util.transform(
+            [a, b, c, d, 0, 0],
+            invPatternTransform
+          );
+          const [sx, sy] = Util.singularValueDecompose2dScale(transf);
+
+          // Cancel the pattern scaling of the line width.
+          // If sx and sy are different, unfortunately we can't do anything and
+          // we'll have a rendering bug.
+          ctx.lineWidth *= Math.max(sx, sy) / fontSize;
+          ctx.stroke(
+            this.#getScaledPath(path, currentTransform, patternStrokeTransform)
+          );
+        } else {
+          ctx.lineWidth /= fontSize;
+          ctx.stroke(path);
+        }
       }
       ctx.restore();
     } else {
@@ -2062,7 +2110,7 @@ class CanvasGraphics {
         x,
         y,
         fontSize,
-        addToPath,
+        path,
       });
     }
   }
@@ -2127,7 +2175,7 @@ class CanvasGraphics {
       ctx.scale(textHScale, 1);
     }
 
-    let patternTransform;
+    let patternFillTransform, patternStrokeTransform;
     if (current.patternFill) {
       ctx.save();
       const pattern = current.fillColor.getPattern(
@@ -2136,9 +2184,22 @@ class CanvasGraphics {
         getCurrentTransformInverse(ctx),
         PathType.FILL
       );
-      patternTransform = getCurrentTransform(ctx);
+      patternFillTransform = getCurrentTransform(ctx);
       ctx.restore();
       ctx.fillStyle = pattern;
+    }
+
+    if (current.patternStroke) {
+      ctx.save();
+      const pattern = current.strokeColor.getPattern(
+        ctx,
+        this,
+        getCurrentTransformInverse(ctx),
+        PathType.STROKE
+      );
+      patternStrokeTransform = getCurrentTransform(ctx);
+      ctx.restore();
+      ctx.strokeStyle = pattern;
     }
 
     let lineWidth = current.lineWidth;
@@ -2233,7 +2294,13 @@ class CanvasGraphics {
           // common case
           ctx.fillText(character, scaledX, scaledY);
         } else {
-          this.paintChar(character, scaledX, scaledY, patternTransform);
+          this.paintChar(
+            character,
+            scaledX,
+            scaledY,
+            patternFillTransform,
+            patternStrokeTransform
+          );
           if (accent) {
             const scaledAccentX =
               scaledX + (fontSize * accent.offset.x) / fontSizeScale;
@@ -2243,7 +2310,8 @@ class CanvasGraphics {
               accent.fontChar,
               scaledAccentX,
               scaledAccentY,
-              patternTransform
+              patternFillTransform,
+              patternStrokeTransform
             );
           }
         }
@@ -2294,7 +2362,7 @@ class CanvasGraphics {
 
     ctx.save();
     ctx.transform(...current.textMatrix);
-    ctx.translate(current.x, current.y);
+    ctx.translate(current.x, current.y + current.textRise);
 
     ctx.scale(textHScale, fontDirection);
 
@@ -2379,6 +2447,7 @@ class CanvasGraphics {
 
   setStrokeColorN() {
     this.current.strokeColor = this.getColorN_Pattern(arguments);
+    this.current.patternStroke = true;
   }
 
   setFillColorN() {
@@ -2392,10 +2461,12 @@ class CanvasGraphics {
       g,
       b
     );
+    this.current.patternStroke = false;
   }
 
   setStrokeTransparent() {
     this.ctx.strokeStyle = this.current.strokeColor = "transparent";
+    this.current.patternStroke = false;
   }
 
   setFillRGBColor(r, g, b) {
