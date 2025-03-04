@@ -52,6 +52,7 @@ class Pattern {
     xref,
     res,
     pdfFunctionFactory,
+    globalColorSpaceCache,
     localColorSpaceCache
   ) {
     const dict = shading instanceof BaseStream ? shading.dict : shading;
@@ -66,6 +67,7 @@ class Pattern {
             xref,
             res,
             pdfFunctionFactory,
+            globalColorSpaceCache,
             localColorSpaceCache
           );
         case ShadingType.FREE_FORM_MESH:
@@ -77,6 +79,7 @@ class Pattern {
             xref,
             res,
             pdfFunctionFactory,
+            globalColorSpaceCache,
             localColorSpaceCache
           );
         default:
@@ -114,7 +117,14 @@ class BaseShading {
 // Radial and axial shading have very similar implementations
 // If needed, the implementations can be broken into two classes.
 class RadialAxialShading extends BaseShading {
-  constructor(dict, xref, resources, pdfFunctionFactory, localColorSpaceCache) {
+  constructor(
+    dict,
+    xref,
+    resources,
+    pdfFunctionFactory,
+    globalColorSpaceCache,
+    localColorSpaceCache
+  ) {
     super();
     this.shadingType = dict.get("ShadingType");
     let coordsLen = 0;
@@ -132,6 +142,7 @@ class RadialAxialShading extends BaseShading {
       xref,
       resources,
       pdfFunctionFactory,
+      globalColorSpaceCache,
       localColorSpaceCache,
     });
     this.bbox = lookupNormalRect(dict.getArray("BBox"), null);
@@ -340,24 +351,19 @@ class MeshStreamReader {
   }
 
   readBits(n) {
-    let buffer = this.buffer;
-    let bufferLength = this.bufferLength;
+    const { stream } = this;
+    let { buffer, bufferLength } = this;
+
     if (n === 32) {
       if (bufferLength === 0) {
-        return (
-          ((this.stream.getByte() << 24) |
-            (this.stream.getByte() << 16) |
-            (this.stream.getByte() << 8) |
-            this.stream.getByte()) >>>
-          0
-        );
+        return stream.getInt32() >>> 0;
       }
       buffer =
         (buffer << 24) |
-        (this.stream.getByte() << 16) |
-        (this.stream.getByte() << 8) |
-        this.stream.getByte();
-      const nextByte = this.stream.getByte();
+        (stream.getByte() << 16) |
+        (stream.getByte() << 8) |
+        stream.getByte();
+      const nextByte = stream.getByte();
       this.buffer = nextByte & ((1 << bufferLength) - 1);
       return (
         ((buffer << (8 - bufferLength)) |
@@ -366,10 +372,10 @@ class MeshStreamReader {
       );
     }
     if (n === 8 && bufferLength === 0) {
-      return this.stream.getByte();
+      return stream.getByte();
     }
     while (bufferLength < n) {
-      buffer = (buffer << 8) | this.stream.getByte();
+      buffer = (buffer << 8) | stream.getByte();
       bufferLength += 8;
     }
     bufferLength -= n;
@@ -457,6 +463,7 @@ class MeshShading extends BaseShading {
     xref,
     resources,
     pdfFunctionFactory,
+    globalColorSpaceCache,
     localColorSpaceCache
   ) {
     super();
@@ -471,6 +478,7 @@ class MeshShading extends BaseShading {
       xref,
       resources,
       pdfFunctionFactory,
+      globalColorSpaceCache,
       localColorSpaceCache,
     });
     this.background = dict.has("Background")

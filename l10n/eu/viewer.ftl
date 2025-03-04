@@ -327,6 +327,8 @@ pdfjs-editor-remove-stamp-button =
     .title = Kendu irudia
 pdfjs-editor-remove-highlight-button =
     .title = Kendu nabarmentzea
+pdfjs-editor-remove-signature-button =
+    .title = Kendu sinadura
 
 ##
 
@@ -343,6 +345,10 @@ pdfjs-editor-stamp-add-image-button-label = Gehitu irudia
 pdfjs-editor-free-highlight-thickness-input = Loditasuna
 pdfjs-editor-free-highlight-thickness-title =
     .title = Aldatu loditasuna testua ez beste elementuak nabarmentzean
+# .default-content is used as a placeholder in an empty text editor.
+pdfjs-free-text2 =
+    .aria-label = Testu-editorea
+    .default-content = Hasi idazten…
 pdfjs-free-text =
     .aria-label = Testu-editorea
 pdfjs-free-text-default-content = Hasi idazten…
@@ -353,8 +359,9 @@ pdfjs-ink-canvas =
 
 ## Alt-text dialog
 
-# Alternative text (alt text) helps when people can't see the image.
 pdfjs-editor-alt-text-button-label = Testu alternatiboa
+pdfjs-editor-alt-text-edit-button =
+    .aria-label = Editatu testu alternatiboa
 pdfjs-editor-alt-text-edit-button-label = Editatu testu alternatiboa
 pdfjs-editor-alt-text-dialog-label = Aukeratu aukera
 pdfjs-editor-alt-text-dialog-description = Testu alternatiboak laguntzen du jendeak ezin duenean irudia ikusi edo ez denean kargatzen.
@@ -368,6 +375,9 @@ pdfjs-editor-alt-text-decorative-tooltip = Apaingarri gisa markatuta
 # .placeholder: This is a placeholder for the alt text input area
 pdfjs-editor-alt-text-textarea =
     .placeholder = Adibidez, "gizon gaztea mahaian eserita dago bazkaltzeko"
+# Alternative text (alt text) helps when people can't see the image.
+pdfjs-editor-alt-text-button =
+    .aria-label = Testu alternatiboa
 
 ## Editor resizers
 ## This is used in an aria label to help to understand the role of the resizer.
@@ -449,10 +459,16 @@ pdfjs-editor-new-alt-text-error-close-button = Itxi
 pdfjs-editor-new-alt-text-ai-model-downloading-progress = Testu alternatiboaren AA modeloa deskargatzen ({ $totalSize }/{ $downloadedSize } MB)
     .aria-valuetext = Testu alternatiboaren AA modeloa deskargatzen ({ $totalSize }/{ $downloadedSize } MB)
 # This is a button that users can click to edit the alt text they have already added.
+pdfjs-editor-new-alt-text-added-button =
+    .aria-label = Testu alternatiboa gehituta
 pdfjs-editor-new-alt-text-added-button-label = Testu alternatiboa gehituta
 # This is a button that users can click to open the alt text editor and add alt text when it is not present.
+pdfjs-editor-new-alt-text-missing-button =
+    .aria-label = Testu alternatiboa falta da
 pdfjs-editor-new-alt-text-missing-button-label = Testu alternatiboa falta da
 # This is a button that opens up the alt text modal where users should review the alt text that was automatically generated.
+pdfjs-editor-new-alt-text-to-review-button =
+    .aria-label = Berrikusi testu alternatiboa
 pdfjs-editor-new-alt-text-to-review-button-label = Berrikusi testu alternatiboa
 # "Created automatically" is a prefix that will be added to the beginning of any alt text that has been automatically generated. After the colon, the user will see/hear the actual alt text description. If the alt text has been edited by a human, this prefix will not appear.
 # Variables:
@@ -479,3 +495,91 @@ pdfjs-editor-alt-text-settings-editor-title = Testu alternatiboaren editorea
 pdfjs-editor-alt-text-settings-show-dialog-button-label = Erakutsi testu alternatiboa irudi bat gehitzean berehala
 pdfjs-editor-alt-text-settings-show-dialog-description = Zure irudiek testu alternatiboa duela ziurtatzen laguntzen dizu.
 pdfjs-editor-alt-text-settings-close-button = Itxi
+
+## "Annotations removed" bar
+
+pdfjs-editor-undo-bar-message-highlight = Nabarmentzea kenduta
+pdfjs-editor-undo-bar-message-freetext = Testua kenduta
+pdfjs-editor-undo-bar-message-ink = Marrazkia kenduta
+pdfjs-editor-undo-bar-message-stamp = Irudia kenduta
+pdfjs-editor-undo-bar-message-signature = Sinadura kenduta
+# Variables:
+#   $count (Number) - the number of removed annotations.
+pdfjs-editor-undo-bar-message-multiple =
+    { $count ->
+        [one] Esku-ohar bat kenduta
+       *[other] { $count } esku-ohar kenduta
+    }
+pdfjs-editor-undo-bar-undo-button =
+    .title = Desegin
+pdfjs-editor-undo-bar-undo-button-label = Desegin
+pdfjs-editor-undo-bar-close-button =
+    .title = Itxi
+pdfjs-editor-undo-bar-close-button-label = Itxi
+
+## Add a signature dialog
+
+pdfjs-editor-add-signature-dialog-label =
+    Leiho modal honek PDF dokumentu batera gehitzeko sinadurak
+    sortzea ahalbidetzen dio erabiltzaileari. Erabiltzaileak izena edita
+    dezake (testu alternatibo modura ere erabiltzen dena) eta sinadura
+    gordetzeko aukera du gehiagotan erabili ahal izateko.
+pdfjs-editor-add-signature-dialog-title = Gehitu sinadura
+
+## Tab names
+
+# Type is a verb (you can type your name as signature)
+pdfjs-editor-add-signature-type-button = Mota
+    .title = Mota
+# Draw is a verb (you can draw your signature)
+pdfjs-editor-add-signature-draw-button = Marraztu
+    .title = Marraztu
+pdfjs-editor-add-signature-image-button = Irudia
+    .title = Irudia
+
+## Tab panels
+
+pdfjs-editor-add-signature-type-input =
+    .aria-label = Idatzi zure sinadura
+    .placeholder = Idatzi zure sinadura
+pdfjs-editor-add-signature-draw-placeholder = Marraztu zure sinadura
+pdfjs-editor-add-signature-draw-thickness-range-label = Loditasuna
+# Variables:
+#   $thickness (Number) - the thickness (in pixels) of the line used to draw a signature.
+pdfjs-editor-add-signature-draw-thickness-range =
+    .title = Marrazteko loditasuna: { $thickness }
+pdfjs-editor-add-signature-image-placeholder = Igotzeko, jaregin fitxategia hemen
+pdfjs-editor-add-signature-image-browse-link =
+    { PLATFORM() ->
+        [macos] Edo aukeratu irudi-fitxategiak
+       *[other] Edo arakatu irudi-fitxategiak
+    }
+
+## Controls
+
+pdfjs-editor-add-signature-description-label = Azalpena (testu alternatiboa)
+pdfjs-editor-add-signature-description-input =
+    .title = Azalpena (testu alternatiboa)
+pdfjs-editor-add-signature-description-default-when-drawing = Sinadura
+pdfjs-editor-add-signature-clear-button-label = Garbitu sinadura
+pdfjs-editor-add-signature-clear-button =
+    .title = Garbitu sinadura
+pdfjs-editor-add-signature-save-checkbox = Gorde sinadura
+pdfjs-editor-add-signature-save-warning-message = Gordetako sinadura kopuruaren mugara heldu zara (5). Gehiago gorde ahal izateko, ken ezazu bat.
+pdfjs-editor-add-signature-image-upload-error-title = Ezin da irudia igo
+pdfjs-editor-add-signature-image-upload-error-description = Egiaztatu zure sareko konexioa edo saiatu beste irudi batekin.
+pdfjs-editor-add-signature-error-close-button = Itxi
+
+## Dialog buttons
+
+pdfjs-editor-add-signature-cancel-button = Utzi
+pdfjs-editor-add-signature-add-button = Gehitu
+
+## Main menu for adding/removing signatures
+
+
+## Editor toolbar
+
+
+## Edit signature description dialog
+

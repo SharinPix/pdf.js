@@ -20,12 +20,14 @@ import {
   info,
   InvalidPDFException,
   isArrayEqual,
+  objectSize,
   PageActionEventType,
   RenderingIntentFlag,
   shadow,
   stringToBytes,
   stringToPDFString,
   stringToUTF8String,
+  toHexUtil,
   unreachable,
   Util,
   warn,
@@ -69,11 +71,9 @@ import { OperatorList } from "./operator_list.js";
 import { PartialEvaluator } from "./evaluator.js";
 import { StreamsSequenceStream } from "./decode_stream.js";
 import { StructTreePage } from "./struct_tree.js";
-import { writeObject } from "./writer.js";
 import { XFAFactory } from "./xfa/factory.js";
 import { XRef } from "./xref.js";
 
-const DEFAULT_USER_UNIT = 1.0;
 const LETTER_SIZE_MEDIABOX = [0, 0, 612, 792];
 
 class Page {
@@ -87,6 +87,7 @@ class Page {
     fontCache,
     builtInCMapCache,
     standardFontDataCache,
+    globalColorSpaceCache,
     globalImageCache,
     systemFontCache,
     nonBlendModesSet,
@@ -100,6 +101,7 @@ class Page {
     this.fontCache = fontCache;
     this.builtInCMapCache = builtInCMapCache;
     this.standardFontDataCache = standardFontDataCache;
+    this.globalColorSpaceCache = globalColorSpaceCache;
     this.globalImageCache = globalImageCache;
     this.systemFontCache = systemFontCache;
     this.nonBlendModesSet = nonBlendModesSet;
@@ -194,11 +196,12 @@ class Page {
   }
 
   get userUnit() {
-    let obj = this.pageDict.get("UserUnit");
-    if (typeof obj !== "number" || obj <= 0) {
-      obj = DEFAULT_USER_UNIT;
-    }
-    return shadow(this, "userUnit", obj);
+    const obj = this.pageDict.get("UserUnit");
+    return shadow(
+      this,
+      "userUnit",
+      typeof obj === "number" && obj > 0 ? obj : 1.0
+    );
   }
 
   get view() {
@@ -313,7 +316,7 @@ class Page {
     await Promise.all(promises);
   }
 
-  async saveNewAnnotations(handler, task, annotations, imagePromises) {
+  async saveNewAnnotations(handler, task, annotations, imagePromises, changes) {
     if (this.xfaFactory) {
       throw new Error("XFA: Cannot save new annotations.");
     }
@@ -326,6 +329,7 @@ class Page {
       fontCache: this.fontCache,
       builtInCMapCache: this.builtInCMapCache,
       standardFontDataCache: this.standardFontDataCache,
+      globalColorSpaceCache: this.globalColorSpaceCache,
       globalImageCache: this.globalImageCache,
       systemFontCache: this.systemFontCache,
       options: this.evaluatorOptions,
@@ -347,7 +351,8 @@ class Page {
       partialEvaluator,
       task,
       annotations,
-      imagePromises
+      imagePromises,
+      changes
     );
 
     for (const { ref } of newData.annotations) {
@@ -357,27 +362,20 @@ class Page {
       }
     }
 
-    const savedDict = pageDict.get("Annots");
-    pageDict.set("Annots", annotationsArray);
-    const buffer = [];
-    await writeObject(this.ref, pageDict, buffer, this.xref);
-    if (savedDict) {
-      pageDict.set("Annots", savedDict);
-    }
+    const dict = pageDict.clone();
+    dict.set("Annots", annotationsArray);
+    changes.put(this.ref, {
+      data: dict,
+    });
 
-    const objects = newData.dependencies;
-    objects.push(
-      { ref: this.ref, data: buffer.join("") },
-      ...newData.annotations
-    );
     for (const deletedRef of deletedAnnotations) {
-      objects.push({ ref: deletedRef, data: null });
+      changes.put(deletedRef, {
+        data: null,
+      });
     }
-
-    return objects;
   }
 
-  save(handler, task, annotationStorage) {
+  save(handler, task, annotationStorage, changes) {
     const partialEvaluator = new PartialEvaluator({
       xref: this.xref,
       handler,
@@ -386,6 +384,7 @@ class Page {
       fontCache: this.fontCache,
       builtInCMapCache: this.builtInCMapCache,
       standardFontDataCache: this.standardFontDataCache,
+      globalColorSpaceCache: this.globalColorSpaceCache,
       globalImageCache: this.globalImageCache,
       systemFontCache: this.systemFontCache,
       options: this.evaluatorOptions,
@@ -394,11 +393,11 @@ class Page {
     // Fetch the page's annotations and save the content
     // in case of interactive form fields.
     return this._parsedAnnotations.then(function (annotations) {
-      const newRefsPromises = [];
+      const promises = [];
       for (const annotation of annotations) {
-        newRefsPromises.push(
+        promises.push(
           annotation
-            .save(partialEvaluator, task, annotationStorage)
+            .save(partialEvaluator, task, annotationStorage, changes)
             .catch(function (reason) {
               warn(
                 "save - ignoring annotation data during " +
@@ -409,9 +408,7 @@ class Page {
         );
       }
 
-      return Promise.all(newRefsPromises).then(function (newRefs) {
-        return newRefs.filter(newRef => !!newRef);
-      });
+      return Promise.all(promises);
     });
   }
 
@@ -453,6 +450,7 @@ class Page {
       fontCache: this.fontCache,
       builtInCMapCache: this.builtInCMapCache,
       standardFontDataCache: this.standardFontDataCache,
+      globalColorSpaceCache: this.globalColorSpaceCache,
       globalImageCache: this.globalImageCache,
       systemFontCache: this.systemFontCache,
       options: this.evaluatorOptions,
@@ -548,9 +546,7 @@ class Page {
           resources: this.resources,
           operatorList: opList,
         })
-        .then(function () {
-          return opList;
-        });
+        .then(() => opList);
     });
 
     // Fetch the page's annotations and add their operator lists to the
@@ -677,6 +673,7 @@ class Page {
       fontCache: this.fontCache,
       builtInCMapCache: this.builtInCMapCache,
       standardFontDataCache: this.standardFontDataCache,
+      globalColorSpaceCache: this.globalColorSpaceCache,
       globalImageCache: this.globalImageCache,
       systemFontCache: this.systemFontCache,
       options: this.evaluatorOptions,
@@ -706,7 +703,7 @@ class Page {
     const structTree = await this.pdfManager.ensure(this, "_parseStructTree", [
       structTreeRoot,
     ]);
-    return structTree.serializable;
+    return this.pdfManager.ensure(structTree, "serializable");
   }
 
   /**
@@ -749,6 +746,7 @@ class Page {
           fontCache: this.fontCache,
           builtInCMapCache: this.builtInCMapCache,
           standardFontDataCache: this.standardFontDataCache,
+          globalColorSpaceCache: this.globalColorSpaceCache,
           globalImageCache: this.globalImageCache,
           systemFontCache: this.systemFontCache,
           options: this.evaluatorOptions,
@@ -861,10 +859,6 @@ const STARTXREF_SIGNATURE = new Uint8Array([
   0x73, 0x74, 0x61, 0x72, 0x74, 0x78, 0x72, 0x65, 0x66,
 ]);
 const ENDOBJ_SIGNATURE = new Uint8Array([0x65, 0x6e, 0x64, 0x6f, 0x62, 0x6a]);
-
-const FINGERPRINT_FIRST_BYTES = 1024;
-const EMPTY_FINGERPRINT =
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 
 function find(stream, signature, limit = 1024, backwards = false) {
   if (typeof PDFJSDev === "undefined" || PDFJSDev.test("TESTING")) {
@@ -1294,13 +1288,8 @@ class PDFDocument {
       },
     };
 
-    const fonts = new Map();
-    fontRes.forEach((fontName, font) => {
-      fonts.set(fontName, font);
-    });
     const promises = [];
-
-    for (const [fontName, font] of fonts) {
+    for (const [fontName, font] of fontRes) {
       const descriptor = font.get("FontDescriptor");
       if (!(descriptor instanceof Dict)) {
         continue;
@@ -1489,9 +1478,7 @@ class PDFDocument {
       return shadow(this, "documentInfo", docInfo);
     }
 
-    for (const key of infoDict.getKeys()) {
-      const value = infoDict.get(key);
-
+    for (const [key, value] of infoDict) {
       switch (key) {
         case "Title":
         case "Author":
@@ -1548,30 +1535,24 @@ class PDFDocument {
   }
 
   get fingerprints() {
+    const FINGERPRINT_FIRST_BYTES = 1024;
+    const EMPTY_FINGERPRINT = "\x00".repeat(16);
+
     function validate(data) {
       return (
         typeof data === "string" &&
-        data.length > 0 &&
+        data.length === 16 &&
         data !== EMPTY_FINGERPRINT
       );
     }
 
-    function hexString(hash) {
-      const buf = [];
-      for (const num of hash) {
-        const hex = num.toString(16);
-        buf.push(hex.padStart(2, "0"));
-      }
-      return buf.join("");
-    }
-
-    const idArray = this.xref.trailer.get("ID");
+    const id = this.xref.trailer.get("ID");
     let hashOriginal, hashModified;
-    if (Array.isArray(idArray) && validate(idArray[0])) {
-      hashOriginal = stringToBytes(idArray[0]);
+    if (Array.isArray(id) && validate(id[0])) {
+      hashOriginal = stringToBytes(id[0]);
 
-      if (idArray[1] !== idArray[0] && validate(idArray[1])) {
-        hashModified = stringToBytes(idArray[1]);
+      if (id[1] !== id[0] && validate(id[1])) {
+        hashModified = stringToBytes(id[1]);
       }
     } else {
       hashOriginal = calculateMD5(
@@ -1582,8 +1563,8 @@ class PDFDocument {
     }
 
     return shadow(this, "fingerprints", [
-      hexString(hashOriginal),
-      hashModified ? hexString(hashModified) : null,
+      toHexUtil(hashOriginal),
+      hashModified ? toHexUtil(hashModified) : null,
     ]);
   }
 
@@ -1644,24 +1625,25 @@ class PDFDocument {
     } else {
       promise = catalog.getPageDict(pageIndex);
     }
-    // eslint-disable-next-line arrow-body-style
-    promise = promise.then(([pageDict, ref]) => {
-      return new Page({
-        pdfManager: this.pdfManager,
-        xref: this.xref,
-        pageIndex,
-        pageDict,
-        ref,
-        globalIdFactory: this._globalIdFactory,
-        fontCache: catalog.fontCache,
-        builtInCMapCache: catalog.builtInCMapCache,
-        standardFontDataCache: catalog.standardFontDataCache,
-        globalImageCache: catalog.globalImageCache,
-        systemFontCache: catalog.systemFontCache,
-        nonBlendModesSet: catalog.nonBlendModesSet,
-        xfaFactory,
-      });
-    });
+    promise = promise.then(
+      ([pageDict, ref]) =>
+        new Page({
+          pdfManager: this.pdfManager,
+          xref: this.xref,
+          pageIndex,
+          pageDict,
+          ref,
+          globalIdFactory: this._globalIdFactory,
+          fontCache: catalog.fontCache,
+          builtInCMapCache: catalog.builtInCMapCache,
+          standardFontDataCache: catalog.standardFontDataCache,
+          globalColorSpaceCache: catalog.globalColorSpaceCache,
+          globalImageCache: catalog.globalImageCache,
+          systemFontCache: catalog.systemFontCache,
+          nonBlendModesSet: catalog.nonBlendModesSet,
+          xfaFactory,
+        })
+    );
 
     this._pagePromises.set(pageIndex, promise);
     return promise;
@@ -1755,6 +1737,7 @@ class PDFDocument {
               fontCache: catalog.fontCache,
               builtInCMapCache: catalog.builtInCMapCache,
               standardFontDataCache: catalog.standardFontDataCache,
+              globalColorSpaceCache: this.globalColorSpaceCache,
               globalImageCache: catalog.globalImageCache,
               systemFontCache: catalog.systemFontCache,
               nonBlendModesSet: catalog.nonBlendModesSet,
@@ -1769,8 +1752,15 @@ class PDFDocument {
     }
   }
 
-  fontFallback(id, handler) {
-    return this.catalog.fontFallback(id, handler);
+  async fontFallback(id, handler) {
+    const { catalog, pdfManager } = this;
+
+    for (const translatedFont of await Promise.all(catalog.fontCache)) {
+      if (translatedFont.loadedName === id) {
+        translatedFont.fallback(handler, pdfManager.evaluatorOptions);
+        return;
+      }
+    }
   }
 
   async cleanup(manuallyTriggered = false) {
@@ -1797,6 +1787,13 @@ class PDFDocument {
     const field = await xref.fetchAsync(fieldRef);
     if (!(field instanceof Dict)) {
       return;
+    }
+    let subtype = await field.getAsync("Subtype");
+    subtype = subtype instanceof Name ? subtype.name : null;
+    // Skip unrelated annotation types (see issue 19281).
+    switch (subtype) {
+      case "Link":
+        return;
     }
     if (field.has("T")) {
       const partName = stringToPDFString(await field.getAsync("T"));
@@ -1913,9 +1910,12 @@ class PDFDocument {
             })
           );
         }
-
         await Promise.all(allPromises);
-        return { allFields, orphanFields };
+
+        return {
+          allFields: objectSize(allFields) > 0 ? allFields : null,
+          orphanFields,
+        };
       });
 
     return shadow(this, "fieldObjects", promise);
@@ -1938,7 +1938,7 @@ class PDFDocument {
     if (catalogJsActions) {
       return true;
     }
-    if (fieldObjects) {
+    if (fieldObjects?.allFields) {
       return Object.values(fieldObjects.allFields).some(fieldObject =>
         fieldObject.some(object => object.actions !== null)
       );

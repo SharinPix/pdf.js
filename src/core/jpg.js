@@ -782,8 +782,11 @@ function readDataBlock(data, offset) {
   }
 
   const array = data.subarray(offset, endOffset);
-  offset += array.length;
-  return { appData: array, newOffset: offset };
+  return {
+    appData: array,
+    oldOffset: offset,
+    newOffset: offset + array.length,
+  };
 }
 
 function skipData(data, offset) {
@@ -805,6 +808,7 @@ class JpegImage {
   }
 
   static canUseImageDecoder(data, colorTransform = -1) {
+    let exifOffsets = null;
     let offset = 0;
     let numComponents = null;
     let fileMarker = readUint16(data, offset);
@@ -817,6 +821,31 @@ class JpegImage {
 
     markerLoop: while (fileMarker !== /* EOI (End of Image) = */ 0xffd9) {
       switch (fileMarker) {
+        case 0xffe1: // APP1 - Exif
+          // TODO: Remove this once https://github.com/w3c/webcodecs/issues/870
+          //       is fixed.
+          const { appData, oldOffset, newOffset } = readDataBlock(data, offset);
+          offset = newOffset;
+
+          // 'Exif\x00\x00'
+          if (
+            appData[0] === 0x45 &&
+            appData[1] === 0x78 &&
+            appData[2] === 0x69 &&
+            appData[3] === 0x66 &&
+            appData[4] === 0 &&
+            appData[5] === 0
+          ) {
+            if (exifOffsets) {
+              throw new JpegError("Duplicate EXIF-blocks found.");
+            }
+            // Don't do the EXIF-block replacement here, see `JpegStream`,
+            // since that can modify the original PDF document.
+            exifOffsets = { exifStart: oldOffset + 6, exifEnd: newOffset };
+          }
+          fileMarker = readUint16(data, offset);
+          offset += 2;
+          continue;
         case 0xffc0: // SOF0 (Start of Frame, Baseline DCT)
         case 0xffc1: // SOF1 (Start of Frame, Extended DCT)
         case 0xffc2: // SOF2 (Start of Frame, Progressive DCT)
@@ -838,12 +867,12 @@ class JpegImage {
       offset += 2;
     }
     if (numComponents === 4) {
-      return false;
+      return null;
     }
     if (numComponents === 3 && colorTransform === 0) {
-      return false;
+      return null;
     }
-    return true;
+    return exifOffsets || {};
   }
 
   parse(data, { dnlScanLines = null } = {}) {
